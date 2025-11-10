@@ -37,6 +37,7 @@ dependencies:
   mobile_scanner: ^7.1.3
   icons_launcher: ^3.0.3
   audioplayers: ^6.5.1
+  http: ^1.6.0
 
 icons_launcher:
   image_path: "assets/barcode_icon.png"

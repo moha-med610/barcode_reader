@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 class ProfessionalBarcodeScanner extends StatefulWidget {
   const ProfessionalBarcodeScanner({super.key});
@@ -11,8 +13,10 @@ class ProfessionalBarcodeScanner extends StatefulWidget {
 
 class _ProfessionalBarcodeScannerState
     extends State<ProfessionalBarcodeScanner> {
-  MobileScannerController? _cameraController; // ممكن يكون null
-  String _scannedBarcode = "لا يوجد باركود ممسوح بعد...";
+  MobileScannerController? _cameraController;
+  String _scannedBarcode = "No barcode scanned yet...";
+  String _productDetails = "";
+  String? _imageUrl;
   bool _isProcessing = false;
 
   @override
@@ -31,13 +35,12 @@ class _ProfessionalBarcodeScannerState
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Barcode Scanner'),
+        title: const Text(' Barcode Scanner'),
         backgroundColor: Colors.indigo,
-        elevation: 4,
       ),
       body: Column(
         children: [
-          Expanded(flex: 7, child: _buildScannerView()),
+          Expanded(flex: 2, child: _buildScannerView()),  
           Expanded(flex: 3, child: _buildResultView()),
         ],
       ),
@@ -46,7 +49,6 @@ class _ProfessionalBarcodeScannerState
 
   Widget _buildScannerView() {
     if (_cameraController == null) {
-      // منع crash قبل ما الcontroller يتحضر
       return const Center(child: CircularProgressIndicator());
     }
 
@@ -69,10 +71,10 @@ class _ProfessionalBarcodeScannerState
         Center(
           child: Container(
             width: double.infinity,
-            height: 200,
+            height: 120,
             decoration: BoxDecoration(
-              border: Border.all(color: Colors.redAccent, width: 2),
-              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.redAccent, width: 1),
+              borderRadius: BorderRadius.circular(5),
             ),
           ),
         ),
@@ -104,32 +106,53 @@ class _ProfessionalBarcodeScannerState
         color: Colors.white,
         border: Border(top: BorderSide(color: Colors.grey, width: 0.5)),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Text(
-            'Barcode Number: ',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: Colors.indigo,
+      child: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Barcode Number:',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: Colors.indigo,
+              ),
             ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            _scannedBarcode,
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: _scannedBarcode == "No Barcode Scan Yet.."
-                  ? Colors.grey
-                  : Colors.black,
+            const SizedBox(height: 8),
+            Text(
+              _scannedBarcode,
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: _scannedBarcode == "No barcode scanned yet..."
+                    ? Colors.grey
+                    : Colors.black,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
             ),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
+            const SizedBox(height: 20),
+            if (_imageUrl != null)
+              Center(
+                child: Image.network(
+                  _imageUrl!,
+                  height: 150,
+                  fit: BoxFit.contain,
+                  errorBuilder: (context, error, stackTrace) =>
+                      const Icon(Icons.broken_image, size: 50),
+                ),
+              ),
+            const SizedBox(height: 10),
+            Text(
+              _productDetails,
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w500,
+                color: Colors.green,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -138,9 +161,47 @@ class _ProfessionalBarcodeScannerState
     setState(() {
       _isProcessing = true;
       _scannedBarcode = value;
+      _productDetails = "Fetching product data...";
+      _imageUrl = null;
     });
 
     await _cameraController?.stop();
+
+    try {
+      final uri = Uri.parse(
+        "https://world.openfoodfacts.net/api/v2/product/$value",
+      );
+      final response = await http.get(uri);
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body)['product'];
+        if (data != null) {
+          String name = data['product_name'] ?? "Name not found";
+          String brand = data['brands'] ?? "";
+          String quantity = data['quantity'] ?? "";
+          String categories = data['categories'] ?? "";
+          String details =
+              "$name${brand.isNotEmpty ? "\nBrand: $brand" : ""}${quantity.isNotEmpty ? "\nQuantity: $quantity" : ""}${categories.isNotEmpty ? "\nCategories: $categories" : ""}";
+
+          setState(() {
+            _productDetails = details;
+            _imageUrl = data['image_url'];
+          });
+        } else {
+          setState(() {
+            _productDetails = "Product not found in database";
+          });
+        }
+      } else {
+        setState(() {
+          _productDetails = "Failed to fetch product data";
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _productDetails = "Error: $e";
+      });
+    }
 
     Future.delayed(const Duration(seconds: 2), () {
       if (mounted) {
