@@ -63,111 +63,141 @@ class ProductDetailsScreen extends StatelessWidget {
       ),
       backgroundColor: Color(0xFF0B8F57),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20.0),
-        child: Container(
-          padding: EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: const Color.fromARGB(255, 235, 234, 234),
-            borderRadius: BorderRadius.all(Radius.circular(30)),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              // **بطاقة المنتج العلوية**
-              Center(
-                child: Card(
-                  elevation: 4,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(15),
+        // padding: const EdgeInsets.all(20.0),
+        child: Column(
+          children: [
+            Container(
+              padding: EdgeInsets.all(20),
+              margin: EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: const Color.fromARGB(255, 235, 234, 234),
+                borderRadius: BorderRadius.all(Radius.circular(30)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  // **بطاقة المنتج العلوية**
+                  Center(
+                    child: Card(
+                      elevation: 4,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(15),
+                      ),
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(20.0),
+                        child: Column(
+                          children: [
+                            // صورة المنتج
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(10),
+                              child: Image.network(
+                                product.imageUrl.isNotEmpty
+                                    ? product.imageUrl
+                                    : 'https://via.placeholder.com/150?text=No+Image',
+                                height: 150,
+                                fit: BoxFit.contain,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return const Icon(
+                                    Icons.image_not_supported,
+                                    size: 100,
+                                    color: Colors.white,
+                                  );
+                                },
+                              ),
+                            ),
+                            const SizedBox(height: 15),
+                            // اسم المنتج والسعر/الحالة
+                            Text(
+                              product.name,
+                              style: const TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                            Text(
+                              "Barcode: $code",
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF0B8F57),
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                   ),
-                  child: Container(
+                  const SizedBox(height: 20),
+
+                  // **الوصف**
+                  const Text(
+                    'ingredients',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                  Text(
+                    product.ingredients,
+                    style: const TextStyle(fontSize: 16, color: Colors.grey),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // **تفاصيل المنتج (استخدام دالة _buildDetailRow)**
+                  _buildDetailRow('Brand', product.brand),
+                  _buildDetailRow('Category', product.category),
+                  _buildDetailRow('Origin', product.origin),
+
+                  const SizedBox(height: 30),
+                  SizedBox(
                     width: double.infinity,
-                    padding: const EdgeInsets.all(20.0),
-                    child: Column(
-                      children: [
-                        // صورة المنتج
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(10),
-                          child: Image.network(
-                            product.imageUrl.isNotEmpty
-                                ? product.imageUrl
-                                : 'https://via.placeholder.com/150?text=No+Image',
-                            height: 150,
-                            fit: BoxFit.contain,
-                            errorBuilder: (context, error, stackTrace) {
-                              return const Icon(
-                                Icons.image_not_supported,
-                                size: 100,
-                                color: Colors.white,
-                              );
-                            },
-                          ),
+                    height: 50,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.pop(context);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Color(0xFF0B8F57),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(15),
                         ),
-                        const SizedBox(height: 15),
-                        // اسم المنتج والسعر/الحالة
-                        Text(
-                          product.name,
-                          style: const TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                          ),
-                          textAlign: TextAlign.center,
+                      ),
+                      child: const Text(
+                        'Back',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
                         ),
-                        Text(
-                          "Barcode: $code",
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF0B8F57),
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
+                      ),
                     ),
                   ),
-                ),
+                ],
               ),
-              const SizedBox(height: 20),
-
-              // **الوصف**
-              const Text(
-                'ingredients',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              ),
-              Text(
-                product.ingredients,
-                style: const TextStyle(fontSize: 16, color: Colors.grey),
-              ),
-              const SizedBox(height: 20),
-
-              // **تفاصيل المنتج (استخدام دالة _buildDetailRow)**
-              _buildDetailRow('Brand', product.brand),
-              _buildDetailRow('Category', product.category),
-              _buildDetailRow('Origin', product.origin),
-
-              const SizedBox(height: 30),
-              SizedBox(
+            ),
+            Align(
+              alignment: AlignmentGeometry.bottomCenter,
+              child: Container(
+                color: Colors.black,
                 width: double.infinity,
-                height: 50,
-                child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Color(0xFF0B8F57),
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(15),
+                margin: EdgeInsets.only(top: 20),
+                padding: EdgeInsets.all(10),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      "Developed By Ahmed Soliman & Mohamed Khaled ©All Rights Received. ${DateTime.now().year}",
+                      style: TextStyle(
+                        fontSize: 8,
+                        color: Color.fromARGB(255, 255, 255, 255),
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
-                  ),
-                  child: const Text(
-                    'Back',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
+                  ],
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
