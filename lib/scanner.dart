@@ -1,215 +1,339 @@
+// lib/screens/scan_product_screen.dart
+
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'product_details.dart'; // تأكد من أن هذا الملف يحتوي على ProductDetailsScreen
 
-class ProfessionalBarcodeScanner extends StatefulWidget {
-  const ProfessionalBarcodeScanner({super.key});
+// نموذج بيانات المنتج
+class ProductDetails {
+  final String name;
+  final String brand;
+  final String category;
+  final String origin;
+  final String imageUrl;
+  final String ingredients;
 
-  @override
-  State<ProfessionalBarcodeScanner> createState() =>
-      _ProfessionalBarcodeScannerState();
+  ProductDetails({
+    required this.name,
+    required this.brand,
+    required this.category,
+    required this.origin,
+    required this.imageUrl,
+    required this.ingredients,
+  });
 }
 
-class _ProfessionalBarcodeScannerState
-    extends State<ProfessionalBarcodeScanner> {
-  MobileScannerController? _cameraController;
-  String _scannedBarcode = "No barcode scanned yet...";
-  String _productDetails = "";
-  String? _imageUrl;
-  bool _isProcessing = false;
+class ScanProductScreen extends StatefulWidget {
+  const ScanProductScreen({super.key});
 
   @override
-  void initState() {
-    super.initState();
-    _cameraController = MobileScannerController();
+  State<ScanProductScreen> createState() => _ScanProductScreenState();
+}
+
+class _ScanProductScreenState extends State<ScanProductScreen> {
+  final MobileScannerController cameraController = MobileScannerController();
+  final Color primaryGreen = const Color(0xFF0B8F57);
+  bool _isScanning = true;
+  String _detectedBarcode = 'Scan a Barcode...';
+  String? _lastDetectedCode;
+
+  // دالة جلب البيانات من Open Food Facts
+  Future<void> _fetchProductDetails(String barcode) async {
+    setState(() {
+      _detectedBarcode = 'Loading...';
+      _isScanning = false;
+    });
+
+    final url = Uri.parse(
+      'https://world.openfoodfacts.net/api/v2/product/$barcode',
+    );
+
+    try {
+      final response = await http.get(url);
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> data = jsonDecode(response.body);
+
+        if (data['status'] == 1 && data['product'] != null) {
+          final productData = data['product'];
+
+          final ProductDetails product = ProductDetails(
+            name: productData['product_name'] ?? 'Unknown Product',
+            brand: productData['brands'] ?? 'N/A',
+            category: productData['categories'] ?? 'N/A',
+            origin: productData['countries'] ?? 'N/A',
+            imageUrl: productData['image_url'] ?? '',
+            ingredients: productData['ingredients_text'] ?? 'N/A',
+          );
+
+          if (!mounted) return;
+
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) =>
+                  ProductDetailsScreen(product: product, code: barcode),
+            ),
+          ).then((_) => _startScanning());
+        } else {
+          _showError('Product not found for this barcode.');
+          _startScanning();
+        }
+      } else {
+        _showError(
+          'Failed to load product. Status code: ${response.statusCode}',
+        );
+        _startScanning();
+      }
+    } catch (e) {
+      _showError('An error occurred: $e');
+      _startScanning();
+    }
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  void _startScanning() {
+    if (!_isScanning) {
+      cameraController.start();
+    }
+    setState(() {
+      _isScanning = true;
+      _detectedBarcode = 'Scan a Barcode...';
+      _lastDetectedCode = null;
+    });
+  }
+
+  void _onBarcodeDetect(BarcodeCapture capture) {
+    final List<Barcode> barcodes = capture.barcodes;
+    if (barcodes.isNotEmpty && _isScanning) {
+      final String? code = barcodes.first.rawValue;
+      if (code != null && code != _lastDetectedCode) {
+        cameraController.stop();
+        setState(() {
+          _detectedBarcode = code;
+          _lastDetectedCode = code;
+          _isScanning = false;
+        });
+        // جلب التفاصيل يتم عبر الزر
+      }
+    }
   }
 
   @override
   void dispose() {
-    _cameraController?.dispose();
+    cameraController.dispose();
     super.dispose();
   }
 
   @override
+  void initState() {
+    super.initState();
+    _startScanning();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final double statusBarHeight = MediaQuery.of(context).padding.top;
+
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text(' Barcode Scanner'),
-        backgroundColor: Colors.indigo,
+        backgroundColor: primaryGreen,
+        title: const Text(
+          "Barcode Scanner",
+          style: TextStyle(color: Colors.white),
+        ),
+        centerTitle: true,
       ),
-      body: Column(
+      body: Stack(
         children: [
-          Expanded(flex: 2, child: _buildScannerView()),  
-          Expanded(flex: 3, child: _buildResultView()),
+          // 1. منطقة الكاميرا
+          MobileScanner(
+            controller: cameraController,
+            onDetect: _onBarcodeDetect,
+            fit: BoxFit.cover,
+          ),
+
+          // 2. تراكب المربع المحدد والرمز
+          Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  width: 300,
+                  height: 300,
+                  decoration: ShapeDecoration(
+                    shape: _ScannerOverlayShape(
+                      borderColor: primaryGreen,
+                      borderWidth: 3.0,
+                      borderRadius: 20,
+                      cutoutWidth: 250,
+                      cutoutHeight: 250,
+                    ),
+                  ),
+                  child: Center(
+                    child: Text(
+                      _lastDetectedCode ?? '',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                        color: Colors.black,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 180),
+              ],
+            ),
+          ),
+
+          // 3. زر "View Details" في الأسفل
+          Align(
+            alignment: Alignment.bottomCenter,
+            child: Padding(
+              padding: const EdgeInsets.all(30.0),
+              child: SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: ElevatedButton(
+                  onPressed: _lastDetectedCode != null && !_isScanning
+                      ? () => _fetchProductDetails(_lastDetectedCode!)
+                      : null,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: primaryGreen,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: _detectedBarcode == 'Loading...'
+                      ? const SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 3,
+                          ),
+                        )
+                      : const Text(
+                          'View Details',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );
   }
+}
 
-  Widget _buildScannerView() {
-    if (_cameraController == null) {
-      return const Center(child: CircularProgressIndicator());
-    }
+// كلاس مساعد لإنشاء الشكل المربع المحدد (مثل الزوايا)
+class _ScannerOverlayShape extends ShapeBorder {
+  final Color borderColor;
+  final double borderWidth;
+  final double borderRadius;
+  final double cutoutWidth;
+  final double cutoutHeight;
 
-    return Stack(
-      children: [
-        MobileScanner(
-          controller: _cameraController!,
-          onDetect: (capture) {
-            if (_isProcessing) return;
+  const _ScannerOverlayShape({
+    required this.borderColor,
+    required this.borderWidth,
+    required this.borderRadius,
+    required this.cutoutWidth,
+    required this.cutoutHeight,
+  });
 
-            final List<Barcode> barcodes = capture.barcodes;
-            if (barcodes.isNotEmpty) {
-              final String? barcodeValue = barcodes.first.rawValue;
-              if (barcodeValue != null) {
-                _processBarcode(barcodeValue);
-              }
-            }
-          },
-        ),
-        Center(
-          child: Container(
-            width: double.infinity,
-            height: 120,
-            decoration: BoxDecoration(
-              border: Border.all(color: Colors.redAccent, width: 1),
-              borderRadius: BorderRadius.circular(5),
-            ),
-          ),
-        ),
-        Positioned(
-          bottom: 20,
-          left: 20,
-          child: IconButton(
-            icon: const Icon(Icons.flash_on, color: Colors.white, size: 32),
-            onPressed: () => _cameraController?.toggleTorch(),
-          ),
-        ),
-        Positioned(
-          bottom: 20,
-          right: 20,
-          child: IconButton(
-            icon: const Icon(Icons.cameraswitch, color: Colors.white, size: 32),
-            onPressed: () => _cameraController?.switchCamera(),
-          ),
-        ),
-      ],
+  @override
+  EdgeInsetsGeometry get dimensions => const EdgeInsets.all(10);
+
+  @override
+  Path getInnerPath(Rect rect, {TextDirection? textDirection}) => Path();
+
+  @override
+  Path getOuterPath(Rect rect, {TextDirection? textDirection}) => Path()
+    ..addRRect(RRect.fromRectAndRadius(rect, Radius.circular(borderRadius)));
+
+  @override
+  void paint(Canvas canvas, Rect rect, {TextDirection? textDirection}) {
+    final paint = Paint()
+      ..color = borderColor
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = borderWidth
+      ..isAntiAlias = true;
+
+    final double cornerSize = 30.0;
+    final double cornerThickness = borderWidth;
+    final center = rect.center;
+    final cutoutRect = Rect.fromCenter(
+      center: center,
+      width: cutoutWidth,
+      height: cutoutHeight,
+    );
+
+    final cornerPaint = Paint()
+      ..color = borderColor
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round
+      ..strokeWidth = cornerThickness;
+
+    // الزوايا
+    canvas.drawLine(
+      Offset(cutoutRect.left, cutoutRect.top + cornerSize),
+      Offset(cutoutRect.left, cutoutRect.top),
+      cornerPaint,
+    );
+    canvas.drawLine(
+      Offset(cutoutRect.left, cutoutRect.top),
+      Offset(cutoutRect.left + cornerSize, cutoutRect.top),
+      cornerPaint,
+    );
+
+    canvas.drawLine(
+      Offset(cutoutRect.right, cutoutRect.top + cornerSize),
+      Offset(cutoutRect.right, cutoutRect.top),
+      cornerPaint,
+    );
+    canvas.drawLine(
+      Offset(cutoutRect.right, cutoutRect.top),
+      Offset(cutoutRect.right - cornerSize, cutoutRect.top),
+      cornerPaint,
+    );
+
+    canvas.drawLine(
+      Offset(cutoutRect.left, cutoutRect.bottom - cornerSize),
+      Offset(cutoutRect.left, cutoutRect.bottom),
+      cornerPaint,
+    );
+    canvas.drawLine(
+      Offset(cutoutRect.left, cutoutRect.bottom),
+      Offset(cutoutRect.left + cornerSize, cutoutRect.bottom),
+      cornerPaint,
+    );
+
+    canvas.drawLine(
+      Offset(cutoutRect.right, cutoutRect.bottom - cornerSize),
+      Offset(cutoutRect.right, cutoutRect.bottom),
+      cornerPaint,
+    );
+    canvas.drawLine(
+      Offset(cutoutRect.right, cutoutRect.bottom),
+      Offset(cutoutRect.right - cornerSize, cutoutRect.bottom),
+      cornerPaint,
     );
   }
 
-  Widget _buildResultView() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20.0),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(top: BorderSide(color: Colors.grey, width: 0.5)),
-      ),
-      child: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Barcode Number:',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: Colors.indigo,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              _scannedBarcode,
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                color: _scannedBarcode == "No barcode scanned yet..."
-                    ? Colors.grey
-                    : Colors.black,
-              ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 20),
-            if (_imageUrl != null)
-              Center(
-                child: Image.network(
-                  _imageUrl!,
-                  height: 150,
-                  fit: BoxFit.contain,
-                  errorBuilder: (context, error, stackTrace) =>
-                      const Icon(Icons.broken_image, size: 50),
-                ),
-              ),
-            const SizedBox(height: 10),
-            Text(
-              _productDetails,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w500,
-                color: Colors.green,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _processBarcode(String value) async {
-    setState(() {
-      _isProcessing = true;
-      _scannedBarcode = value;
-      _productDetails = "Fetching product data...";
-      _imageUrl = null;
-    });
-
-    await _cameraController?.stop();
-
-    try {
-      final uri = Uri.parse(
-        "https://world.openfoodfacts.net/api/v2/product/$value",
-      );
-      final response = await http.get(uri);
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body)['product'];
-        if (data != null) {
-          String name = data['product_name'] ?? "Name not found";
-          String brand = data['brands'] ?? "";
-          String quantity = data['quantity'] ?? "";
-          String categories = data['categories'] ?? "";
-          String details =
-              "$name${brand.isNotEmpty ? "\nBrand: $brand" : ""}${quantity.isNotEmpty ? "\nQuantity: $quantity" : ""}${categories.isNotEmpty ? "\nCategories: $categories" : ""}";
-
-          setState(() {
-            _productDetails = details;
-            _imageUrl = data['image_url'];
-          });
-        } else {
-          setState(() {
-            _productDetails = "Product not found in database";
-          });
-        }
-      } else {
-        setState(() {
-          _productDetails = "Failed to fetch product data";
-        });
-      }
-    } catch (e) {
-      setState(() {
-        _productDetails = "Error: $e";
-      });
-    }
-
-    Future.delayed(const Duration(seconds: 2), () {
-      if (mounted) {
-        setState(() {
-          _isProcessing = false;
-        });
-        _cameraController?.start();
-      }
-    });
-  }
+  @override
+  ShapeBorder scale(double t) => this;
 }

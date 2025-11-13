@@ -38,6 +38,8 @@ dependencies:
   icons_launcher: ^3.0.3
   audioplayers: ^6.5.1
   http: ^1.6.0
+  dotted_border: ^3.1.0
+  google_fonts: ^6.3.2
 
 icons_launcher:
   image_path: "assets/barcode_icon.png"
