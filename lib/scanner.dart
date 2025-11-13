@@ -269,7 +269,8 @@ class _ScannerOverlayShape extends ShapeBorder {
       ..color = borderColor
       ..style = PaintingStyle.stroke
       ..strokeWidth = borderWidth
-      ..strokeCap = StrokeCap.round
+      ..strokeCap = StrokeCap
+          .round // للحصول على نهايات خطوط مدورة
       ..isAntiAlias = true;
 
     final center = rect.center;
@@ -279,22 +280,29 @@ class _ScannerOverlayShape extends ShapeBorder {
       height: cutoutHeight,
     );
 
-    const double cornerLength = 30;
+    const double cornerLength = 30; // طول الخط المستقيم من كل زاوية
+    final double r = borderRadius; // نصف قطر انحناء الزاوية
 
-    // 🔹 نرسم الزوايا الأربع بخطوط قصيرة + radius
-    final r = borderRadius;
+    // 🔹 رسم الزوايا الأربع (أقواس وخطوط مستقيمة)
 
-    // top-left
+    // 1. الزاوية العلوية اليسرى (Top-Left)
+    // القوس
     canvas.drawArc(
-      Rect.fromCircle(
-        center: Offset(cutoutRect.left + r, cutoutRect.top + r),
-        radius: r,
+      Rect.fromLTWH(
+        cutoutRect.left, // بداية المستطيل من الشمال
+        cutoutRect.top, // بداية المستطيل من فوق
+        r * 2, // العرض
+        r * 2, // الارتفاع
       ),
-      3.14, // نصف دائرة من اليسار
-      1.57, // ربع دائرة
+      180 *
+          (3.1415926535 /
+              180), // زاوية البداية (180 درجة = الزاوية العليا اليسرى)
+      90 * (3.1415926535 / 180), // زاوية القوس (90 درجة)
       false,
       paint,
     );
+
+    // الخطوط
     canvas.drawLine(
       Offset(cutoutRect.left + r, cutoutRect.top),
       Offset(cutoutRect.left + r + cornerLength, cutoutRect.top),
@@ -306,17 +314,22 @@ class _ScannerOverlayShape extends ShapeBorder {
       paint,
     );
 
-    // top-right
+    // 2. الزاوية العلوية اليمنى (Top-Right)
+    // القوس
     canvas.drawArc(
-      Rect.fromCircle(
-        center: Offset(cutoutRect.right - r, cutoutRect.top + r),
-        radius: r,
+      Rect.fromLTWH(
+        cutoutRect.right - r * 2, // نبدأ من يمين المستطيل
+        cutoutRect.top, // فوق
+        r * 2,
+        r * 2,
       ),
-      -1.57, // ربع دائرة من الأعلى يمين
-      1.57,
+      270 * (3.1415926535 / 180), // الزاوية العليا اليمين
+      90 * (3.1415926535 / 180), // قوس 90 درجة
       false,
       paint,
     );
+
+    // الخطوط
     canvas.drawLine(
       Offset(cutoutRect.right - r, cutoutRect.top),
       Offset(cutoutRect.right - r - cornerLength, cutoutRect.top),
@@ -328,17 +341,22 @@ class _ScannerOverlayShape extends ShapeBorder {
       paint,
     );
 
-    // bottom-left
+    // 3. الزاوية السفلية اليسرى (Bottom-Left)
+    // القوس
     canvas.drawArc(
-      Rect.fromCircle(
-        center: Offset(cutoutRect.left + r, cutoutRect.bottom - r),
-        radius: r,
+      Rect.fromLTWH(
+        cutoutRect.left, // من الشمال
+        cutoutRect.bottom - r * 2, // من تحت
+        r * 2,
+        r * 2,
       ),
-      1.57, // من تحت يسار
-      1.57,
+      90 * (3.1415926535 / 180), // زاوية البداية (السفلية اليسرى)
+      90 * (3.1415926535 / 180), // قوس 90 درجة
       false,
       paint,
     );
+
+    // الخطوط
     canvas.drawLine(
       Offset(cutoutRect.left + r, cutoutRect.bottom),
       Offset(cutoutRect.left + r + cornerLength, cutoutRect.bottom),
@@ -350,17 +368,21 @@ class _ScannerOverlayShape extends ShapeBorder {
       paint,
     );
 
-    // bottom-right
+    // 4. الزاوية السفلية اليمنى (Bottom-Right)
+    // القوس
     canvas.drawArc(
-      Rect.fromCircle(
-        center: Offset(cutoutRect.right - r, cutoutRect.bottom - r),
-        radius: r,
+      Rect.fromLTWH(
+        cutoutRect.right - r * 2,
+        cutoutRect.bottom - r * 2,
+        r * 2,
+        r * 2,
       ),
-      0, // من تحت يمين
-      1.57,
+      0 * (3.1415926535 / 180), // Start angle (0 degrees in radians)
+      90 * (3.1415926535 / 180), // Sweep angle
       false,
       paint,
     );
+    // الخطوط
     canvas.drawLine(
       Offset(cutoutRect.right - r, cutoutRect.bottom),
       Offset(cutoutRect.right - r - cornerLength, cutoutRect.bottom),
