@@ -173,7 +173,7 @@ class _ScanProductScreenState extends State<ScanProductScreen> {
                     shape: _ScannerOverlayShape(
                       borderColor: primaryGreen,
                       borderWidth: 3.0,
-                      borderRadius: 20,
+                      borderRadius: 40,
                       cutoutWidth: 250,
                       cutoutHeight: 250,
                     ),
@@ -271,10 +271,9 @@ class _ScannerOverlayShape extends ShapeBorder {
       ..color = borderColor
       ..style = PaintingStyle.stroke
       ..strokeWidth = borderWidth
+      ..strokeCap = StrokeCap.round
       ..isAntiAlias = true;
 
-    final double cornerSize = 30.0;
-    final double cornerThickness = borderWidth;
     final center = rect.center;
     final cutoutRect = Rect.fromCenter(
       center: center,
@@ -282,55 +281,97 @@ class _ScannerOverlayShape extends ShapeBorder {
       height: cutoutHeight,
     );
 
-    final cornerPaint = Paint()
-      ..color = borderColor
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round
-      ..strokeWidth = cornerThickness;
+    const double cornerLength = 30;
 
-    // الزوايا
-    canvas.drawLine(
-      Offset(cutoutRect.left, cutoutRect.top + cornerSize),
-      Offset(cutoutRect.left, cutoutRect.top),
-      cornerPaint,
-    );
-    canvas.drawLine(
-      Offset(cutoutRect.left, cutoutRect.top),
-      Offset(cutoutRect.left + cornerSize, cutoutRect.top),
-      cornerPaint,
-    );
+    // 🔹 نرسم الزوايا الأربع بخطوط قصيرة + radius
+    final r = borderRadius;
 
-    canvas.drawLine(
-      Offset(cutoutRect.right, cutoutRect.top + cornerSize),
-      Offset(cutoutRect.right, cutoutRect.top),
-      cornerPaint,
+    // top-left
+    canvas.drawArc(
+      Rect.fromCircle(
+        center: Offset(cutoutRect.left + r, cutoutRect.top + r),
+        radius: r,
+      ),
+      3.14, // نصف دائرة من اليسار
+      1.57, // ربع دائرة
+      false,
+      paint,
     );
     canvas.drawLine(
-      Offset(cutoutRect.right, cutoutRect.top),
-      Offset(cutoutRect.right - cornerSize, cutoutRect.top),
-      cornerPaint,
+      Offset(cutoutRect.left + r, cutoutRect.top),
+      Offset(cutoutRect.left + r + cornerLength, cutoutRect.top),
+      paint,
+    );
+    canvas.drawLine(
+      Offset(cutoutRect.left, cutoutRect.top + r),
+      Offset(cutoutRect.left, cutoutRect.top + r + cornerLength),
+      paint,
     );
 
-    canvas.drawLine(
-      Offset(cutoutRect.left, cutoutRect.bottom - cornerSize),
-      Offset(cutoutRect.left, cutoutRect.bottom),
-      cornerPaint,
+    // top-right
+    canvas.drawArc(
+      Rect.fromCircle(
+        center: Offset(cutoutRect.right - r, cutoutRect.top + r),
+        radius: r,
+      ),
+      -1.57, // ربع دائرة من الأعلى يمين
+      1.57,
+      false,
+      paint,
     );
     canvas.drawLine(
-      Offset(cutoutRect.left, cutoutRect.bottom),
-      Offset(cutoutRect.left + cornerSize, cutoutRect.bottom),
-      cornerPaint,
+      Offset(cutoutRect.right - r, cutoutRect.top),
+      Offset(cutoutRect.right - r - cornerLength, cutoutRect.top),
+      paint,
+    );
+    canvas.drawLine(
+      Offset(cutoutRect.right, cutoutRect.top + r),
+      Offset(cutoutRect.right, cutoutRect.top + r + cornerLength),
+      paint,
     );
 
-    canvas.drawLine(
-      Offset(cutoutRect.right, cutoutRect.bottom - cornerSize),
-      Offset(cutoutRect.right, cutoutRect.bottom),
-      cornerPaint,
+    // bottom-left
+    canvas.drawArc(
+      Rect.fromCircle(
+        center: Offset(cutoutRect.left + r, cutoutRect.bottom - r),
+        radius: r,
+      ),
+      1.57, // من تحت يسار
+      1.57,
+      false,
+      paint,
     );
     canvas.drawLine(
-      Offset(cutoutRect.right, cutoutRect.bottom),
-      Offset(cutoutRect.right - cornerSize, cutoutRect.bottom),
-      cornerPaint,
+      Offset(cutoutRect.left + r, cutoutRect.bottom),
+      Offset(cutoutRect.left + r + cornerLength, cutoutRect.bottom),
+      paint,
+    );
+    canvas.drawLine(
+      Offset(cutoutRect.left, cutoutRect.bottom - r),
+      Offset(cutoutRect.left, cutoutRect.bottom - r - cornerLength),
+      paint,
+    );
+
+    // bottom-right
+    canvas.drawArc(
+      Rect.fromCircle(
+        center: Offset(cutoutRect.right - r, cutoutRect.bottom - r),
+        radius: r,
+      ),
+      0, // من تحت يمين
+      1.57,
+      false,
+      paint,
+    );
+    canvas.drawLine(
+      Offset(cutoutRect.right - r, cutoutRect.bottom),
+      Offset(cutoutRect.right - r - cornerLength, cutoutRect.bottom),
+      paint,
+    );
+    canvas.drawLine(
+      Offset(cutoutRect.right, cutoutRect.bottom - r),
+      Offset(cutoutRect.right, cutoutRect.bottom - r - cornerLength),
+      paint,
     );
   }
 
