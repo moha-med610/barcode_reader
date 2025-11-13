@@ -86,7 +86,7 @@ class _ScanProductScreenState extends State<ScanProductScreen> {
         _startScanning();
       }
     } catch (e) {
-      _showError('Failed To Load Data. Please Check Your Internet');
+      _showError('Failed to load product. Please Check Your Internet');
       _startScanning();
     }
   }
@@ -115,11 +115,12 @@ class _ScanProductScreenState extends State<ScanProductScreen> {
       if (code != null && code != _lastDetectedCode) {
         cameraController.stop();
         setState(() {
-          _detectedBarcode = code;
+          _detectedBarcode = 'Loading...';
           _lastDetectedCode = code;
           _isScanning = false;
         });
-        // جلب التفاصيل يتم عبر الزر
+        // جلب التفاصيل مباشرة بدون زر
+        _fetchProductDetails(code);
       }
     }
   }
@@ -134,101 +135,96 @@ class _ScanProductScreenState extends State<ScanProductScreen> {
   void initState() {
     super.initState();
     _startScanning();
+    _lastDetectedCode = null;
+    _isScanning = true;
   }
 
   @override
   Widget build(BuildContext context) {
-    final double statusBarHeight = MediaQuery.of(context).padding.top;
-
     return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: primaryGreen,
-        title: const Text(
-          "Barcode Scanner",
-          style: TextStyle(color: Colors.white),
-        ),
-        centerTitle: true,
-      ),
+      backgroundColor: Colors.transparent,
       body: Stack(
         children: [
-          // 1. منطقة الكاميرا
-          MobileScanner(
-            controller: cameraController,
-            onDetect: _onBarcodeDetect,
-            fit: BoxFit.cover,
+          // 1. كاميرا تغطي الشاشة كلها
+          Positioned.fill(
+            child: MobileScanner(
+              controller: cameraController,
+              onDetect: _onBarcodeDetect,
+              fit: BoxFit.cover,
+            ),
           ),
 
-          // 2. تراكب المربع المحدد والرمز
+          // 2. AppBar أعلى الشاشة
+          Align(
+            alignment: Alignment.topCenter,
+            child: SafeArea(
+              child: Container(
+                height: 80,
+                width: 300,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                decoration: BoxDecoration(
+                  color: primaryGreen,
+                  borderRadius: BorderRadius.all(Radius.circular(30)),
+                ),
+                child: const Center(
+                  child: Text(
+                    "Barcode Scanner",
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+
+          // 3. Overlay المربع مع الكود و مؤشر التحميل
           Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Container(
-                  width: 300,
-                  height: 300,
-                  decoration: ShapeDecoration(
-                    shape: _ScannerOverlayShape(
-                      borderColor: primaryGreen,
-                      borderWidth: 3.0,
-                      borderRadius: 40,
-                      cutoutWidth: 250,
-                      cutoutHeight: 250,
-                    ),
-                  ),
-                  child: Center(
-                    child: Text(
-                      _lastDetectedCode ?? '',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                        color: Colors.black,
+                Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    CustomPaint(
+                      size: const Size(300, 300),
+                      painter: ScannerOverlayPainter(
+                        borderColor: primaryGreen,
+                        borderWidth: 3,
+                        borderRadius: 20,
+                        cutoutWidth: 250,
+                        cutoutHeight: 250,
                       ),
                     ),
-                  ),
-                ),
-                const SizedBox(height: 180),
-              ],
-            ),
-          ),
-
-          // 3. زر "View Details" في الأسفل
-          Align(
-            alignment: Alignment.bottomCenter,
-            child: Padding(
-              padding: const EdgeInsets.all(30.0),
-              child: SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton(
-                  onPressed: _lastDetectedCode != null && !_isScanning
-                      ? () => _fetchProductDetails(_lastDetectedCode!)
-                      : null,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: primaryGreen,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  child: _detectedBarcode == 'Loading...'
-                      ? const SizedBox(
-                          width: 24,
-                          height: 24,
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 3,
-                          ),
-                        )
-                      : const Text(
-                          'View Details',
-                          style: TextStyle(
-                            fontSize: 18,
+                    // الكود أو مؤشر التحميل
+                    Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          _lastDetectedCode ?? '',
+                          style: const TextStyle(
                             fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                            color: Colors.white,
                           ),
                         ),
+                        const SizedBox(height: 10),
+                        if (_detectedBarcode == 'Loading...')
+                          const SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 3,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ],
                 ),
-              ),
+              ],
             ),
           ),
         ],
@@ -238,14 +234,14 @@ class _ScanProductScreenState extends State<ScanProductScreen> {
 }
 
 // كلاس مساعد لإنشاء الشكل المربع المحدد (مثل الزوايا)
-class _ScannerOverlayShape extends ShapeBorder {
+class ScannerOverlayPainter extends CustomPainter {
   final Color borderColor;
   final double borderWidth;
   final double borderRadius;
   final double cutoutWidth;
   final double cutoutHeight;
 
-  const _ScannerOverlayShape({
+  ScannerOverlayPainter({
     required this.borderColor,
     required this.borderWidth,
     required this.borderRadius,
@@ -254,147 +250,99 @@ class _ScannerOverlayShape extends ShapeBorder {
   });
 
   @override
-  EdgeInsetsGeometry get dimensions => const EdgeInsets.all(10);
-
-  @override
-  Path getInnerPath(Rect rect, {TextDirection? textDirection}) => Path();
-
-  @override
-  Path getOuterPath(Rect rect, {TextDirection? textDirection}) => Path()
-    ..addRRect(RRect.fromRectAndRadius(rect, Radius.circular(borderRadius)));
-
-  @override
-  void paint(Canvas canvas, Rect rect, {TextDirection? textDirection}) {
+  void paint(Canvas canvas, Size size) {
     final paint = Paint()
       ..color = borderColor
-      ..style = PaintingStyle.stroke
       ..strokeWidth = borderWidth
-      ..strokeCap = StrokeCap
-          .round // للحصول على نهايات خطوط مدورة
-      ..isAntiAlias = true;
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
 
-    final center = rect.center;
-    final cutoutRect = Rect.fromCenter(
+    final center = Offset(size.width / 2, size.height / 2);
+    final rect = Rect.fromCenter(
       center: center,
       width: cutoutWidth,
       height: cutoutHeight,
     );
+    final r = borderRadius;
+    const double cornerLength = 30;
 
-    const double cornerLength = 30; // طول الخط المستقيم من كل زاوية
-    final double r = borderRadius; // نصف قطر انحناء الزاوية
-
-    // 🔹 رسم الزوايا الأربع (أقواس وخطوط مستقيمة)
-
-    // 1. الزاوية العلوية اليسرى (Top-Left)
-    // القوس
+    // Top-left
+    canvas.drawLine(
+      Offset(rect.left + r, rect.top),
+      Offset(rect.left + r + cornerLength, rect.top),
+      paint,
+    );
+    canvas.drawLine(
+      Offset(rect.left, rect.top + r),
+      Offset(rect.left, rect.top + r + cornerLength),
+      paint,
+    );
     canvas.drawArc(
-      Rect.fromLTWH(
-        cutoutRect.left, // بداية المستطيل من الشمال
-        cutoutRect.top, // بداية المستطيل من فوق
-        r * 2, // العرض
-        r * 2, // الارتفاع
-      ),
-      180 *
-          (3.1415926535 /
-              180), // زاوية البداية (180 درجة = الزاوية العليا اليسرى)
-      90 * (3.1415926535 / 180), // زاوية القوس (90 درجة)
+      Rect.fromLTWH(rect.left, rect.top, r * 2, r * 2),
+      3.1415926535,
+      3.1415926535 / 2,
       false,
       paint,
     );
 
-    // الخطوط
+    // Top-right
     canvas.drawLine(
-      Offset(cutoutRect.left + r, cutoutRect.top),
-      Offset(cutoutRect.left + r + cornerLength, cutoutRect.top),
+      Offset(rect.right - r, rect.top),
+      Offset(rect.right - r - cornerLength, rect.top),
       paint,
     );
     canvas.drawLine(
-      Offset(cutoutRect.left, cutoutRect.top + r),
-      Offset(cutoutRect.left, cutoutRect.top + r + cornerLength),
+      Offset(rect.right, rect.top + r),
+      Offset(rect.right, rect.top + r + cornerLength),
       paint,
     );
-
-    // 2. الزاوية العلوية اليمنى (Top-Right)
-    // القوس
     canvas.drawArc(
-      Rect.fromLTWH(
-        cutoutRect.right - r * 2, // نبدأ من يمين المستطيل
-        cutoutRect.top, // فوق
-        r * 2,
-        r * 2,
-      ),
-      270 * (3.1415926535 / 180), // الزاوية العليا اليمين
-      90 * (3.1415926535 / 180), // قوس 90 درجة
+      Rect.fromLTWH(rect.right - 2 * r, rect.top, r * 2, r * 2),
+      -3.1415926535 / 2,
+      3.1415926535 / 2,
       false,
       paint,
     );
 
-    // الخطوط
+    // Bottom-left
     canvas.drawLine(
-      Offset(cutoutRect.right - r, cutoutRect.top),
-      Offset(cutoutRect.right - r - cornerLength, cutoutRect.top),
+      Offset(rect.left + r, rect.bottom),
+      Offset(rect.left + r + cornerLength, rect.bottom),
       paint,
     );
     canvas.drawLine(
-      Offset(cutoutRect.right, cutoutRect.top + r),
-      Offset(cutoutRect.right, cutoutRect.top + r + cornerLength),
+      Offset(rect.left, rect.bottom - r),
+      Offset(rect.left, rect.bottom - r - cornerLength),
       paint,
     );
-
-    // 3. الزاوية السفلية اليسرى (Bottom-Left)
-    // القوس
     canvas.drawArc(
-      Rect.fromLTWH(
-        cutoutRect.left, // من الشمال
-        cutoutRect.bottom - r * 2, // من تحت
-        r * 2,
-        r * 2,
-      ),
-      90 * (3.1415926535 / 180), // زاوية البداية (السفلية اليسرى)
-      90 * (3.1415926535 / 180), // قوس 90 درجة
+      Rect.fromLTWH(rect.left, rect.bottom - 2 * r, r * 2, r * 2),
+      3.1415926535 / 2,
+      3.1415926535 / 2,
       false,
       paint,
     );
 
-    // الخطوط
+    // Bottom-right
     canvas.drawLine(
-      Offset(cutoutRect.left + r, cutoutRect.bottom),
-      Offset(cutoutRect.left + r + cornerLength, cutoutRect.bottom),
+      Offset(rect.right - r, rect.bottom),
+      Offset(rect.right - r - cornerLength, rect.bottom),
       paint,
     );
     canvas.drawLine(
-      Offset(cutoutRect.left, cutoutRect.bottom - r),
-      Offset(cutoutRect.left, cutoutRect.bottom - r - cornerLength),
+      Offset(rect.right, rect.bottom - r),
+      Offset(rect.right, rect.bottom - r - cornerLength),
       paint,
     );
-
-    // 4. الزاوية السفلية اليمنى (Bottom-Right)
-    // القوس
     canvas.drawArc(
-      Rect.fromLTWH(
-        cutoutRect.right - r * 2,
-        cutoutRect.bottom - r * 2,
-        r * 2,
-        r * 2,
-      ),
-      0 * (3.1415926535 / 180), // Start angle (0 degrees in radians)
-      90 * (3.1415926535 / 180), // Sweep angle
+      Rect.fromLTWH(rect.right - 2 * r, rect.bottom - 2 * r, r * 2, r * 2),
+      0,
+      3.1415926535 / 2,
       false,
-      paint,
-    );
-    // الخطوط
-    canvas.drawLine(
-      Offset(cutoutRect.right - r, cutoutRect.bottom),
-      Offset(cutoutRect.right - r - cornerLength, cutoutRect.bottom),
-      paint,
-    );
-    canvas.drawLine(
-      Offset(cutoutRect.right, cutoutRect.bottom - r),
-      Offset(cutoutRect.right, cutoutRect.bottom - r - cornerLength),
       paint,
     );
   }
 
   @override
-  ShapeBorder scale(double t) => this;
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
