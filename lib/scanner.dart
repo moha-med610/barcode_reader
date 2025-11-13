@@ -82,13 +82,11 @@ class _ScanProductScreenState extends State<ScanProductScreen> {
           _startScanning();
         }
       } else {
-        _showError(
-          'Failed to load product. Status code: ${response.statusCode}',
-        );
+        _showError('Product Not Found. Status code: ${response.statusCode}');
         _startScanning();
       }
     } catch (e) {
-      _showError('An error occurred: $e');
+      _showError('Failed To Load Data. Please Check Your Internet');
       _startScanning();
     }
   }
